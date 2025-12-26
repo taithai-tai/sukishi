@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sukishi NFC Experience</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Kanit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background-color: #F7FEE7; /* Lime-50 background */
+            color: #18181b;
+        }
+
+        /* --- THEME COLORS --- */
+        .text-lettuce-dark { color: #14532d; }
+        
+        /* Clean Cards */
+        .clean-card {
+            background: #FFFFFF;
+            border: 1px solid #ECFCCB;
+            box-shadow: 0 4px 20px rgba(65, 124, 23, 0.08);
+        }
+
+        /* Loading Ring */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); opacity: 0.5; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        .nfc-ring { animation: pulse-ring 1.5s cubic-bezier(0.215, 0.61, 0.355, 1) infinite; }
+
+        .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+        ::-webkit-scrollbar { width: 0px; background: transparent; }
+        
+        .hide-scroll::-webkit-scrollbar { display: none; }
+        .hide-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* --- FLIP CARD STYLES FIXED --- */
+        .flip-card {
+            perspective: 1000px;
+            cursor: pointer;
+        }
+        
+        .flip-card-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s cubic-bezier(0.4, 0.0, 0.2, 1);
+            transform-style: preserve-3d;
+        }
+        
+        .flip-card.flipped .flip-card-inner {
+            transform: rotateY(180deg);
+        }
+        
+        .flip-card-front, .flip-card-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            border-radius: 2rem;
+            /* Shadow on faces to prevent jumping */
+            box-shadow: 0 25px 50px -12px rgba(163, 230, 53, 0.5); 
+            background-color: white;
+            overflow: hidden;
+        }
+        
+        .flip-card-front {
+            z-index: 2;
+            transform: rotateY(0deg);
+        }
+        
+        .flip-card-back {
+            transform: rotateY(180deg);
+            z-index: 1;
+        }
+
+        /* --- PAGE TRANSITIONS --- */
+        .page-enter {
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .page-enter-active {
+            transform: translateX(0);
+        }
+        .page-exit {
+            transform: translateX(0);
+            transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .page-exit-active {
+            transform: translateX(100%);
+        }
+    </style>
+</head>
+<body class="min-h-screen relative overflow-x-hidden selection:bg-lime-200 selection:text-lime-900">
+    
+    <!-- 1. LOADING SCREEN -->
+    <div id="loading-screen" class="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#F7FEE7] transition-opacity duration-500">
+        <div class="relative">
+            <div class="absolute inset-0 border-4 border-lime-400 rounded-full nfc-ring"></div>
+            <div class="w-24 h-24 rounded-full border-4 border-white flex items-center justify-center mb-4 shadow-xl shadow-lime-200 relative z-10 bg-white">
+                <i data-lucide="nfc" class="w-10 h-10 text-lime-600"></i>
+            </div>
+        </div>
+        <p class="text-lime-700 text-xs tracking-[0.2em] uppercase animate-pulse mt-6 font-bold">Verifying...</p>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="home-page" class="min-h-screen pb-10 transition-transform duration-300 ease-in-out bg-[#F7FEE7]">
+        <!-- 2. HEADER -->
+        <header class="relative z-30 px-6 pt-10 pb-20 bg-gradient-to-b from-[#bef264] to-[#4ade80] rounded-b-[3rem] shadow-lg shadow-lime-200/50">
+            <div class="flex justify-center items-center mb-4">
+                <img src="https://www.sukishigroup.com/Sukishi/wp-content/uploads/elementor/thumbs/LOGO-W-stroke-08-oc91nr2y7hp6c0i4v1t8gqwx0cg3q7b5xybpy57y3c.png" 
+                     alt="Sukishi Logo" 
+                     class="h-10 w-auto object-contain drop-shadow-md brightness-110">
+            </div>
+            <div class="text-center text-green-900">
+                 <span class="inline-block px-3 py-1 bg-white/60 backdrop-blur-sm rounded-full text-[10px] font-bold tracking-wider uppercase mb-2 text-green-800 border border-white/40 shadow-sm">ผักดองครองพิภพ</span>
+                 <h1 class="text-2xl font-bold leading-none text-[#064e3b]">MAT JJANG</h1>
+                 <p class="text-xs text-[#065f46] mt-1 font-medium opacity-80">Fresh & Premium Experience</p>
+            </div>
+            
+            <!-- Decor -->
+            <div class="absolute top-0 left-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -translate-x-10 -translate-y-10"></div>
+            <div class="absolute bottom-0 right-0 w-24 h-24 bg-green-500/10 rounded-full blur-xl translate-x-5 translate-y-5"></div>
+        </header>
+
+        <!-- 3. MAIN CONTENT -->
+        <main class="-mt-12 px-5 space-y-6 opacity-0 transition-opacity duration-700 relative z-40" id="main-content">
+
+            <!-- FLIP CARD HERO SECTION -->
+            <div class="relative w-full mx-auto max-w-[320px] h-[420px] flip-card group animate-fade-in-up" onclick="this.classList.toggle('flipped')">
+                <div class="flip-card-inner">
+                    
+                    <!-- FRONT: Product Image -->
+                    <div class="flip-card-front border-[6px] border-white">
+                         <img src="https://raw.githubusercontent.com/taithai-tai/sukishi/main/%E0%B8%94%E0%B8%B5%E0%B9%84%E0%B8%8B%E0%B8%99%E0%B9%8C%E0%B8%97%E0%B8%B5%E0%B9%88%E0%B8%A2%E0%B8%B1%E0%B8%87%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B9%84%E0%B8%94%E0%B9%89%E0%B8%95%E0%B8%B1%E0%B9%89%E0%B8%87%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD%20(2).png" 
+                              class="w-full h-full object-cover" alt="Product Front">
+                        
+                        <!-- Tap Hint Overlay -->
+                        <div class="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/60 to-transparent flex flex-col items-center justify-end pb-6">
+                            <div class="bg-white/20 backdrop-blur-md border border-white/30 rounded-full px-3 py-1.5 flex items-center gap-2 animate-bounce">
+                                <i data-lucide="rotate-3d" class="w-4 h-4 text-white"></i>
+                                <span class="text-[10px] text-white font-bold uppercase tracking-wide">แตะเพื่อเช็คความสด</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- BACK: Freshness Monitor -->
+                    <div class="flip-card-back border-[6px] border-white">
+                        <!-- Dimmed Background -->
+                        <div class="absolute inset-0 z-0">
+                            <img src="https://raw.githubusercontent.com/taithai-tai/sukishi/main/%E0%B8%94%E0%B8%B5%E0%B9%84%E0%B8%8B%E0%B8%99%E0%B9%8C%E0%B8%97%E0%B8%B5%E0%B9%88%E0%B8%A2%E0%B8%B1%E0%B8%87%E0%B9%84%E0%B8%A1%E0%B9%88%E0%B9%84%E0%B8%94%E0%B9%89%E0%B8%95%E0%B8%B1%E0%B9%89%E0%B8%87%E0%B8%8A%E0%B8%B7%E0%B9%88%E0%B8%AD%20(2).png" 
+                                 class="w-full h-full object-cover opacity-10 blur-sm scale-110" alt="Background">
+                            <div class="absolute inset-0 bg-gradient-to-b from-white/90 via-white/95 to-white/90"></div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="relative z-10 p-5 text-center h-full flex flex-col justify-center">
+                            <!-- Status Header -->
+                            <div class="flex justify-between items-center mb-4 border-b border-zinc-100 pb-3">
+                                <div class="flex flex-col items-start">
+                                     <span class="text-[10px] text-zinc-400 uppercase tracking-widest font-bold">Freshness Status</span>
+                                     <span class="text-xs font-bold text-green-600 flex items-center gap-1.5 bg-green-50 px-2 py-0.5 rounded-full mt-0.5">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Good Condition
+                                     </span>
+                                </div>
+                                <div class="w-10 h-10 rounded-full border border-zinc-200 bg-white flex items-center justify-center shadow-sm">
+                                    <i data-lucide="check" class="text-green-500 w-5 h-5"></i>
+                                </div>
+                            </div>
+
+                            <!-- Countdown Timer -->
+                            <div class="mb-4">
+                                <p class="text-xs text-zinc-500 font-medium mb-2 uppercase tracking-wide">ควรบริโภคก่อน (Best Before)</p>
+                                <div class="flex justify-center items-end gap-2 text-zinc-800">
+                                     <div class="flex flex-col items-center">
+                                         <div class="bg-zinc-50 border border-zinc-100 rounded-xl p-2 min-w-[50px] shadow-sm">
+                                             <span class="block text-3xl font-bold leading-none tabular-nums text-red-500" id="cd-days">30</span>
+                                         </div>
+                                         <span class="text-[9px] text-zinc-400 uppercase mt-1 font-medium">Days</span>
+                                     </div>
+                                     <span class="text-xl font-bold mb-5 text-zinc-300">:</span>
+                                     <div class="flex flex-col items-center">
+                                         <div class="bg-zinc-50 border border-zinc-100 rounded-xl p-2 min-w-[50px] shadow-sm">
+                                             <span class="block text-3xl font-bold leading-none tabular-nums text-zinc-700" id="cd-hours">00</span>
+                                         </div>
+                                         <span class="text-[9px] text-zinc-400 uppercase mt-1 font-medium">Hours</span>
+                                     </div>
+                                </div>
+                                <div class="mt-2 inline-block px-3 py-1 bg-zinc-50 rounded-lg border border-zinc-100">
+                                    <p class="text-[10px] text-zinc-400" id="expire-date-text">Exp Date: --/--/----</p>
+                                </div>
+                            </div>
+
+                            <!-- Storage Instructions -->
+                            <div class="bg-blue-50/50 rounded-xl p-3 border border-blue-100 text-left">
+                                <div class="flex items-start gap-3">
+                                    <div class="bg-white p-2 rounded-lg text-blue-500 shadow-sm shrink-0 border border-blue-50">
+                                        <i data-lucide="snowflake" class="w-5 h-5"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-xs font-bold text-zinc-700 mb-1">การเก็บรักษา (Storage)</p>
+                                        <ul class="text-[10px] text-zinc-500 space-y-1 list-none">
+                                            <li class="flex items-center gap-1.5">
+                                                <div class="w-1 h-1 rounded-full bg-blue-300"></div>
+                                                ช่องแช่แข็ง -18°C
+                                            </li>
+                                            <li class="flex items-center gap-1.5">
+                                                <div class="w-1 h-1 rounded-full bg-blue-300"></div>
+                                                เก็บได้นาน 1 เดือน
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- PACKAGING INFO SECTION (Trigger New Page) -->
+            <section class="max-w-sm mx-auto pt-4 relative z-50">
+                <div class="clean-card rounded-2xl p-5 relative overflow-hidden flex items-center justify-between group cursor-pointer hover:border-lime-400 transition-colors bg-white" onclick="openPackagingPage()">
+                    <!-- Decor circle -->
+                    <div class="absolute -right-6 -top-6 w-24 h-24 bg-[#ecfccb] rounded-full z-0 group-hover:scale-150 transition-transform duration-500 opacity-50"></div>
+                    
+                    <div class="relative z-10 flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <div class="bg-blue-50 p-1 rounded-md">
+                                <i data-lucide="book-open" class="text-blue-500 w-3.5 h-3.5"></i>
+                            </div>
+                            <span class="text-[10px] text-green-700 font-bold uppercase tracking-wider">Our Story</span>
+                        </div>
+                        <h3 class="text-zinc-800 font-bold text-lg">เรื่องราวของ MAT JJANG</h3>
+                        <p class="text-zinc-500 text-xs mt-0.5">ตำนานความอร่อย & ที่มา</p>
+                    </div>
+
+                    <!-- Custom Icon -->
+                    <div class="relative z-10 w-12 h-12 rounded-full bg-white border-2 border-[#84cc16]/30 flex items-center justify-center shadow-lg shadow-lime-100 group-hover:scale-105 transition-transform overflow-hidden p-1.5">
+                        <img src="https://www.thiings.co/_next/image?url=https%3A%2F%2Flftz25oez4aqbxpq.public.blob.vercel-storage.com%2Fimage-A9eIgv4xhD8XwN8vkvBYY10vCzwTzv.png&w=1000&q=75" 
+                             class="w-full h-full object-contain" alt="Thiings Icon">
+                    </div>
+                </div>
+            </section>
+
+            <!-- SOCIAL MEDIA MENU (Replaced More to Explore) -->
+            <section class="max-w-sm mx-auto pt-2 relative z-40">
+                <div class="flex items-center justify-between mb-3 px-1">
+                    <p class="text-lime-800 text-xs uppercase tracking-wider font-bold opacity-60">Follow Us</p>
+                    <div class="h-px bg-lime-200 flex-1 ml-3"></div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-3">
+                    <!-- Facebook -->
+                    <a href="https://web.facebook.com/sukishifanclub" target="_blank" class="clean-card rounded-xl p-3 flex flex-col items-center gap-2 text-center hover:border-blue-400 hover:shadow-blue-100 transition-all cursor-pointer bg-white/80 backdrop-blur group decoration-0">
+                        <div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center border border-blue-100 group-hover:bg-[#1877F2] group-hover:border-[#1877F2] transition-colors">
+                            <i data-lucide="facebook" class="text-[#1877F2] w-5 h-5 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <span class="text-xs font-bold text-zinc-600 leading-tight">Facebook</span>
+                    </a>
+                    
+                    <!-- Instagram (Updated Link) -->
+                    <a href="https://www.instagram.com/sukishigroup/" target="_blank" class="clean-card rounded-xl p-3 flex flex-col items-center gap-2 text-center hover:border-pink-400 hover:shadow-pink-100 transition-all cursor-pointer bg-white/80 backdrop-blur group decoration-0">
+                        <div class="w-10 h-10 rounded-full bg-pink-50 flex items-center justify-center border border-pink-100 group-hover:bg-[#E1306C] group-hover:border-[#E1306C] transition-colors">
+                            <i data-lucide="instagram" class="text-[#E1306C] w-5 h-5 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <span class="text-xs font-bold text-zinc-600 leading-tight">Instagram</span>
+                    </a>
+                    
+                    <!-- Website -->
+                    <a href="https://sukishigroup.com" target="_blank" class="clean-card rounded-xl p-3 flex flex-col items-center gap-2 text-center hover:border-green-400 hover:shadow-green-100 transition-all cursor-pointer bg-white/80 backdrop-blur group decoration-0">
+                        <div class="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center border border-green-100 group-hover:bg-[#4ade80] group-hover:border-[#4ade80] transition-colors">
+                            <i data-lucide="globe" class="text-green-600 w-5 h-5 group-hover:text-white transition-colors"></i>
+                        </div>
+                        <span class="text-xs font-bold text-zinc-600 leading-tight">Website</span>
+                    </a>
+                </div>
+            </section>
+            
+            <!-- Footer Info -->
+            <div class="text-center pt-8 pb-4">
+                <p class="text-[10px] text-lime-700 opacity-40">© 2024 Sukishi Intergroup Co., Ltd.</p>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- 4. NEW PAGE: PACKAGING INFO (Slideshow) -->
+    <div id="packaging-page" class="fixed inset-0 z-[60] bg-[#F7FEE7] hidden transition-transform duration-300 translate-x-full overflow-y-auto flex flex-col">
+        <!-- Header with Back Button -->
+        <header class="sticky top-0 z-10 bg-white/80 backdrop-blur-md border-b border-lime-100 px-4 py-4 flex items-center gap-4 shrink-0">
+            <button onclick="closePackagingPage()" class="p-2 rounded-full hover:bg-zinc-100 active:bg-zinc-200 transition-colors">
+                <i data-lucide="arrow-left" class="w-6 h-6 text-zinc-700"></i>
+            </button>
+            <h2 class="text-lg font-bold text-zinc-800">เรื่องราวของ MAT JJANG</h2>
+        </header>
+
+        <!-- Page Content (Slideshow) -->
+        <div class="flex-1 flex flex-col items-center justify-center p-6 animate-fade-in-up">
+            
+            <!-- Slide Container -->
+            <div class="w-full max-w-sm text-center relative">
+                
+                <!-- Image Area with Navigation Arrows -->
+                <div class="flex items-center justify-between mb-6">
+                    <!-- Prev Button (Left of Image) -->
+                    <button onclick="prevSlide()" class="p-3 rounded-full bg-white shadow-lg border border-lime-100 text-zinc-400 hover:text-green-600 hover:scale-110 transition-all active:scale-95 z-10">
+                        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                    </button>
+
+                    <!-- Main Image Area (Flip Card) -->
+                    <div class="relative group mx-2 flex-1 flex justify-center perspective-container">
+                        <!-- Background Decoration -->
+                        <div id="slide-bg-decor" class="absolute inset-0 bg-[#ecfccb] rounded-3xl blur-xl opacity-60 transition-colors duration-500"></div>
+                        
+                        <!-- Flip Card Container -->
+                        <div id="slide-flip-card" class="w-full max-w-[320px] aspect-[16/10] mx-auto relative z-10 flip-card cursor-pointer" onclick="toggleSlideFlip()">
+                            <div class="flip-card-inner rounded-3xl" id="slide-inner">
+                                
+                                <!-- FRONT FACE -->
+                                <div class="flip-card-front bg-white rounded-3xl border-4 border-white shadow-xl flex items-center justify-center overflow-hidden transition-colors duration-500 relative" id="slide-front-face">
+                                    <!-- Image Mode -->
+                                    <img id="slide-image" src="" class="w-full h-full object-cover hidden" alt="Front">
+                                    
+                                    <!-- Strategy Card Mode (Icon Inside) -->
+                                    <div id="slide-card-content" class="hidden relative w-full h-full bg-white overflow-hidden">
+                                        <!-- Background Decoration (Big Icon Watermark) -->
+                                        <div class="absolute -right-8 -bottom-8 opacity-[0.07] transform -rotate-12 transition-all duration-500" id="slide-card-decor">
+                                             <i id="slide-card-bg-icon" data-lucide="" class="w-56 h-56"></i>
+                                        </div>
+                                        
+                                        <!-- Top Left Circle Decor -->
+                                        <div id="slide-card-circle" class="absolute -top-16 -left-16 w-48 h-48 rounded-full opacity-10 transition-colors duration-500"></div>
+
+                                        <!-- Centered Content Wrapper -->
+                                        <div class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10">
+                                            
+                                            <!-- TYPE A: Title Only (For Main Topics) -->
+                                            <div id="slide-card-text-mode" class="flex flex-col items-center w-full">
+                                                <h3 id="slide-card-title" class="text-2xl font-bold text-zinc-800 leading-tight drop-shadow-sm tracking-tight"></h3>
+                                                <div id="slide-card-bar" class="w-12 h-1.5 mt-5 rounded-full transition-colors duration-500 opacity-80"></div>
+                                            </div>
+
+                                            <!-- TYPE B: Icon Only (For Sub Topics) -->
+                                            <div id="slide-card-icon-mode" class="hidden flex-col items-center justify-center transform transition-transform hover:scale-110 duration-500">
+                                                <div class="w-28 h-28 rounded-full flex items-center justify-center mb-0 shadow-lg transition-colors duration-500 relative overflow-hidden" id="slide-main-icon-bg">
+                                                    <div class="absolute inset-0 opacity-20 bg-white"></div>
+                                                    <i id="slide-main-icon" data-lucide="" class="w-14 h-14 relative z-10 text-white"></i>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Flip Hint (Shows only on flippable slides) -->
+                                    <div id="slide-flip-hint" class="absolute bottom-2 right-2 bg-black/40 backdrop-blur-sm p-1.5 rounded-full animate-bounce hidden z-20">
+                                        <i data-lucide="rotate-3d" class="w-4 h-4 text-white"></i>
+                                    </div>
+                                </div>
+
+                                <!-- BACK FACE -->
+                                <div class="flip-card-back bg-white rounded-3xl border-4 border-white shadow-xl flex items-center justify-center overflow-hidden" id="slide-back-face">
+                                    <img id="slide-image-back" src="" class="w-full h-full object-cover hidden" alt="Back">
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Next Button (Right of Image) -->
+                    <button onclick="nextSlide()" class="p-3 rounded-full bg-white shadow-lg border border-lime-100 text-zinc-400 hover:text-green-600 hover:scale-110 transition-all active:scale-95 z-10">
+                        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+                    </button>
+                </div>
+
+                <!-- Text Content (Updated to support HTML) -->
+                <div class="mb-6 min-h-[120px] transition-opacity duration-300 flex items-center justify-center" id="slide-text-container">
+                     <div id="slide-text-content" class="w-full">
+                        <h3 id="slide-title" class="text-2xl font-bold mb-3 text-zinc-800">Title</h3>
+                        <div class="w-12 h-1 bg-lime-400 mx-auto mb-4 rounded-full" id="slide-text-bar"></div>
+                        <div id="slide-desc" class="text-zinc-500 text-sm leading-relaxed px-4">Description goes here.</div>
+                     </div>
+                </div>
+
+                <!-- Dots (Centered Bottom) -->
+                <div class="flex justify-center gap-2" id="slide-dots">
+                    <!-- Dots injected by JS -->
+                </div>
+
+            </div>
+            
+            <div class="mt-auto pt-8 text-center w-full">
+                 <p class="text-[10px] text-zinc-400">Authentic Korean Taste by Sukishi</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        lucide.createIcons();
+
+        // Loading & Countdown Initialization
+        window.addEventListener('load', () => {
+            // 1. Loading Screen
+            setTimeout(() => {
+                const loader = document.getElementById('loading-screen');
+                const content = document.getElementById('main-content');
+                if (loader && content) {
+                    loader.classList.add('opacity-0', 'pointer-events-none');
+                    content.classList.remove('opacity-0');
+                    setTimeout(() => { loader.style.display = 'none'; }, 800);
+                }
+            }, 800);
+
+            initCountdown();
+        });
+
+        // ... existing Countdown Logic ...
+        function initCountdown() {
+            const now = new Date();
+            const expireDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+            
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            const dateEl = document.getElementById('expire-date-text');
+            if(dateEl) dateEl.innerText = `Exp Date: ${expireDate.toLocaleDateString('en-GB', options)}`;
+
+            function updateTimer() {
+                const current = new Date();
+                const diff = expireDate - current;
+                
+                const daysEl = document.getElementById('cd-days');
+                const hoursEl = document.getElementById('cd-hours');
+
+                if (!daysEl || !hoursEl) return;
+
+                if (diff <= 0) {
+                    daysEl.innerText = "00";
+                    hoursEl.innerText = "00";
+                    return;
+                }
+
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                
+                daysEl.innerText = days.toString().padStart(2, '0');
+                hoursEl.innerText = hours.toString().padStart(2, '0');
+            }
+
+            updateTimer();
+            setInterval(updateTimer, 60000);
+        }
+
+        // --- PAGE NAVIGATION LOGIC ---
+        function openPackagingPage() {
+            const page = document.getElementById('packaging-page');
+            
+            if (page) {
+                page.classList.remove('hidden');
+                setTimeout(() => {
+                    page.classList.remove('translate-x-full');
+                    page.classList.add('translate-x-0');
+                }, 10);
+                renderSlide(); // Init slide
+            }
+        }
+
+        function closePackagingPage() {
+            const page = document.getElementById('packaging-page');
+            
+            if (page) {
+                page.classList.remove('translate-x-0');
+                page.classList.add('translate-x-full');
+                
+                setTimeout(() => {
+                    page.classList.add('hidden');
+                }, 300);
+            }
+        }
+
+        // --- SLIDESHOW LOGIC ---
+        const slides = [
+            {
+                type: 'image',
+                // รูปหน้าปก
+                src: 'https://github.com/taithai-tai/sukishi/blob/main/ChatGPT%20Image%2027%20%E0%B8%98.%E0%B8%84.%202568%2000_12_12.png?raw=true',
+                // รูปด้านหลัง (รายละเอียด)
+                backSrc: 'https://github.com/taithai-tai/sukishi/blob/main/584376116_815719878164417_228989231982235905_n.jpg?raw=true',
+                title: 'เรื่องราวของ MAT JJANG',
+                desc: 'MAT JJANG (มัทจัง) ถือกำเนิดจากความตั้งใจที่จะแข่งขันในโครงการนี้จัดทำขึ้นเพื่อเข้าร่วมการแข่งขัน Pack to the Future ในประเภท ส่งต่อความสุขไม่รู้จบ โดยนำผลิตภัณฑ์ กิมจิแบรนด์ซูกิชิ เพื่อพัฒนาแนวคิด Smart Packaging หากทำผิดพลาดประการใดขออภัยมาณที่นี้ด้วยครับ',
+                color: '#ecfccb', // Lime
+                iconColor: '#65a30d'
+            },
+            // --- 1. Brand Strategy Main ---
+            {
+                type: 'card',
+                layout: 'icon', // ICON MODE
+                icon: 'target',
+                title: 'Brand Strategy Effectiveness',
+                desc: 'กลยุทธ์การสร้างแบรนด์ที่มีประสิทธิภาพ เพื่อเจาะกลุ่มเป้าหมายใหม่และสร้างภาพลักษณ์ที่แตกต่าง',
+                color: '#e0e7ff', // Indigo
+                iconColor: '#4338ca'
+            },
+            // --- 1.1 Target Audience ---
+            {
+                type: 'card',
+                layout: 'icon', 
+                icon: 'users',
+                title: 'กลุ่มเป้าหมายหลัก',
+                desc: 'วัยรุ่น–วัยทำงานตอนต้น อายุประมาณ 18–30 ปี ที่ชื่นชอบสินค้าที่ดูน่ารัก ถ่ายรูปขึ้น และชอบเปิดรับประสบการณ์ใหม่ๆ',
+                color: '#e0e7ff', 
+                iconColor: '#4338ca'
+            },
+            // --- 1.2 Brand Strategy ---
+            {
+                type: 'card',
+                layout: 'icon', 
+                icon: 'heart-handshake',
+                title: 'กลยุทธ์แบรนด์',
+                desc: 'ใช้ <strong>Emotional Branding</strong> ผ่านคาแรคเตอร์ MAT JJANG เพื่อสร้างความรู้สึกเป็นมิตร สนุกสนาน และเข้าถึงง่าย',
+                color: '#e0e7ff',
+                iconColor: '#4338ca'
+            },
+            // --- 1.3 Objective ---
+            {
+                type: 'card',
+                layout: 'icon', 
+                icon: 'flag',
+                title: 'จุดประสงค์',
+                desc: 'เปลี่ยนภาพจำของกิมจิจากอาหารธรรมดา ให้กลายเป็นสินค้าที่ <span class="text-indigo-600 font-bold">“เห็นแล้วอยากหยิบ อยากแชร์ และอยากมีปฏิสัมพันธ์”</span>',
+                color: '#e0e7ff',
+                iconColor: '#4338ca'
+            },
+            // --- 2. Sustainability Main ---
+            {
+                type: 'card',
+                layout: 'icon', // ICON MODE
+                icon: 'leaf',
+                title: 'Sustainability & Positive Impact',
+                desc: 'การออกแบบเพื่อสิ่งแวดล้อม เศรษฐกิจหมุนเวียน และสังคมยั่งยืน',
+                color: '#dcfce7', // Green
+                iconColor: '#16a34a'
+            },
+            // --- 2.1 Material Selection ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'layers',
+                title: 'วัสดุ Mono-material',
+                desc: 'เลือกใช้ <strong>วัสดุ PP Food Grade แบบ 2 ชั้น</strong> ซึ่งเป็น Mono-material สามารถเข้าสู่ระบบรีไซเคิลได้ง่ายกว่าบรรจุภัณฑ์หลายวัสดุ',
+                color: '#dcfce7',
+                iconColor: '#16a34a'
+            },
+            // --- 2.2 Food Waste ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'shield-check',
+                title: 'ลด Food Waste',
+                desc: 'วัสดุ PP เหมาะกับอาหารหมัก ช่วยลดการเน่าเสีย ยืดอายุการเก็บรักษา และลดปริมาณขยะอาหาร (Food Waste) ได้อย่างมีประสิทธิภาพ',
+                color: '#dcfce7',
+                iconColor: '#16a34a'
+            },
+            // --- 2.3 Smart Packaging ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'smartphone',
+                title: 'Smart Packaging + NFC',
+                desc: 'เทคโนโลยี NFC ช่วยลดการพิมพ์ข้อมูลซ้ำซ้อนบนซอง (ลดหมึก/พื้นที่) และใช้สื่อสารความรู้ด้านสิ่งแวดล้อมเพิ่มเติมได้ผ่านหน้าจอมือถือ',
+                color: '#dcfce7',
+                iconColor: '#16a34a'
+            },
+            // --- 2.4 Consumer Interaction ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'heart-handshake',
+                title: 'สร้างความตระหนักรู้',
+                desc: 'การออกแบบให้ผู้บริโภคมีปฏิสัมพันธ์กับแพ็กเกจ ช่วยสร้าง Value Awareness ให้เห็นคุณค่าของบรรจุภัณฑ์ ไม่ใช่แค่ขยะที่ใช้แล้วทิ้งทันที',
+                color: '#dcfce7',
+                iconColor: '#16a34a'
+            },
+            // --- 3. Creativity Main ---
+            {
+                type: 'card',
+                layout: 'title', // ICON MODE (Main Title uses text layout or icon layout based on preference, keeping consistent with others if they were changed to icon layout globally, but here we set specific layouts)
+                // User requested ALL cards to be icon layout previously. I will set layout: 'icon' for main topics too based on previous instructions to keep consistency.
+                layout: 'icon', 
+                icon: 'sparkles',
+                title: 'Creativity & Packaging Design',
+                desc: 'นวัตกรรม ความคิดสร้างสรรค์ และโครงสร้างบรรจุภัณฑ์ที่ทันสมัย',
+                color: '#fce7f3', // Pink
+                iconColor: '#db2777'
+            },
+            // --- 3.1 Cute Psychology ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'smile-plus',
+                title: 'Cute Psychology',
+                desc: 'ใช้ <strong>Cute Psychology</strong> ผ่านคาแรคเตอร์ MAT JJANG เพื่อสร้างแรงดึงดูดทางอารมณ์ตั้งแต่แรกเห็น',
+                color: '#fce7f3',
+                iconColor: '#db2777'
+            },
+            // --- 3.2 Package as Media ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'message-circle',
+                title: 'บรรจุภัณฑ์คือ "สื่อ"',
+                desc: 'แพ็กเกจไม่ได้ทำหน้าที่แค่ห่ออาหาร แต่เป็น <strong>“สื่อ”</strong> ที่เชื่อมผู้บริโภคเข้าสู่โลกดิจิทัล',
+                color: '#fce7f3',
+                iconColor: '#db2777'
+            },
+            // --- 3.3 NFC Innovation ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'wifi',
+                title: 'NFC Smart Packaging',
+                desc: 'การใช้ <strong>NFC Smart Packaging</strong> เป็นนวัตกรรมที่ช่วยเพิ่มประสบการณ์หลังการซื้อ (Post-purchase Experience)',
+                color: '#fce7f3',
+                iconColor: '#db2777'
+            },
+            // --- 3.4 Structure ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'layers',
+                title: 'โครงสร้างซอง PP 2 ชั้น',
+                desc: 'แยกหน้าที่ชัดเจนระหว่างการปกป้องอาหาร (ชั้นใน) และการสื่อสารแบรนด์/ความสวยงาม (ชั้นนอก)',
+                color: '#fce7f3',
+                iconColor: '#db2777'
+            },
+            // --- 4. Industrial Main ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'factory',
+                title: 'Industrial Feasibility',
+                desc: 'ความเป็นไปได้เชิงอุตสาหกรรม และการเลือกใช้วัสดุที่เหมาะสมกับการผลิตจริง',
+                color: '#f1f5f9', // Slate
+                iconColor: '#475569'
+            },
+            // --- 4.1 Material ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'flask-conical',
+                title: 'วัสดุ PP Food Grade',
+                desc: 'ใช้วัสดุ <strong>PP Random Copolymer (ฟิล์มขุ่น)</strong> ซึ่งเหมาะกับอาหารหมัก ทนกรด ความเค็ม และกลิ่นได้ดีเยี่ยม',
+                color: '#f1f5f9',
+                iconColor: '#475569'
+            },
+            // --- 4.2 Production ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'settings',
+                title: 'ผลิตได้จริง',
+                desc: 'โครงสร้าง PP 2 ชั้น เป็นรูปแบบที่โรงงาน Flexible Packaging ในประเทศไทยรองรับอยู่แล้ว ไม่ซับซ้อนเกินไป',
+                color: '#f1f5f9',
+                iconColor: '#475569'
+            },
+            // --- 4.3 Logistics ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'truck',
+                title: 'ลดต้นทุนโลจิสติกส์',
+                desc: 'น้ำหนักเบา (Lightweight) ช่วยประหยัดพื้นที่และลดต้นทุนในการขนส่ง',
+                color: '#f1f5f9',
+                iconColor: '#475569'
+            },
+            // --- 4.4 NFC Position ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'scan-line',
+                title: 'ตำแหน่ง NFC ปลอดภัย',
+                desc: 'NFC ถูกออกแบบให้ติดตั้งในตำแหน่งที่ไม่สัมผัสอาหารโดยตรง และไม่กระทบต่อคุณภาพสินค้า',
+                color: '#f1f5f9',
+                iconColor: '#475569'
+            },
+            // --- 5. Practicality Main ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'trending-up',
+                title: 'Practicality & Marketability',
+                desc: 'ศักยภาพเชิงธุรกิจ ความคุ้มค่าการลงทุน และโอกาสทางการตลาด',
+                color: '#ffedd5', // Orange
+                iconColor: '#ea580c'
+            },
+            // --- 5.1 Portion Size ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'utensils',
+                title: 'ขนาดพอดีมื้อ',
+                desc: 'ขนาด 150 กรัม เหมาะกับการบริโภค 1 มื้อ ตรงกับพฤติกรรมผู้บริโภคไทย ไม่เหลือทิ้ง',
+                color: '#ffedd5',
+                iconColor: '#ea580c'
+            },
+            // --- 5.2 Marketing ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'share-2',
+                title: 'Organic Marketing',
+                desc: 'ดีไซน์น่ารัก ดึงดูดให้ถ่ายรูป ช่วยสร้าง <strong>Organic Marketing</strong> ผ่านโซเชียลมีเดียได้ฟรีๆ',
+                color: '#ffedd5',
+                iconColor: '#ea580c'
+            },
+            // --- 5.3 NFC Extension ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'rocket',
+                title: 'ต่อยอดได้ไม่รู้จบ',
+                desc: 'NFC สามารถเปลี่ยนคอนเทนต์ได้ตลอดเวลา เช่น แคมเปญ CRM, Seasonal Collaboration หรือแจกสูตรอาหาร',
+                color: '#ffedd5',
+                iconColor: '#ea580c'
+            },
+            // --- 5.4 Brand Value ---
+            {
+                type: 'card',
+                layout: 'icon',
+                icon: 'gem',
+                title: 'เพิ่มมูลค่าแบรนด์',
+                desc: 'สร้างภาพลักษณ์ทันสมัยและใส่ใจสิ่งแวดล้อม เพิ่มมูลค่าแบรนด์โดยไม่จำเป็นต้องทุ่มงบโฆษณาสูง',
+                color: '#ffedd5',
+                iconColor: '#ea580c'
+            }
+        ];
+
+        let currentSlideIndex = 0;
+
+        function renderSlide() {
+            const slide = slides[currentSlideIndex];
+            
+            // Text Container Ref
+            const textContainer = document.getElementById('slide-text-container');
+            
+            // Animate Out Text
+            if(textContainer) textContainer.classList.add('opacity-0');
+
+            // Reset Flip State
+            const flipCard = document.getElementById('slide-flip-card');
+            if(flipCard) flipCard.classList.remove('flipped');
+
+            setTimeout(() => {
+                // Elements
+                const imgEl = document.getElementById('slide-image');
+                const cardContentEl = document.getElementById('slide-card-content');
+                
+                // Card Text Mode Elements
+                const cardTextMode = document.getElementById('slide-card-text-mode');
+                const cardTitleEl = document.getElementById('slide-card-title');
+                const barDecor = document.getElementById('slide-card-bar');
+                
+                // Card Icon Mode Elements
+                const cardIconMode = document.getElementById('slide-card-icon-mode');
+                const mainIconEl = document.getElementById('slide-main-icon');
+                const mainIconBg = document.getElementById('slide-main-icon-bg');
+
+                // Decor Elements
+                const bgIconEl = document.getElementById('slide-card-bg-icon');
+                const circleDecor = document.getElementById('slide-card-circle');
+                
+                // Common Elements
+                const bgDecor = document.getElementById('slide-bg-decor');
+                const frontFace = document.getElementById('slide-front-face');
+                const backFace = document.getElementById('slide-back-face');
+                
+                const backImgEl = document.getElementById('slide-image-back');
+                const hintEl = document.getElementById('slide-flip-hint');
+
+                // Update Colors
+                if(bgDecor) bgDecor.style.backgroundColor = slide.color;
+                if(frontFace) frontFace.style.borderColor = slide.color;
+                if(backFace) backFace.style.borderColor = slide.color;
+
+                // --- COMMON TEXT UPDATE (Title & Desc) ---
+                if(textContainer) textContainer.classList.remove('hidden'); 
+                
+                const titleEl = document.getElementById('slide-title');
+                const descEl = document.getElementById('slide-desc');
+                const textBarEl = document.getElementById('slide-text-bar');
+                
+                if(titleEl) titleEl.innerText = slide.title;
+                if(descEl) descEl.innerHTML = slide.desc || ''; 
+                if(textBarEl) textBarEl.style.backgroundColor = slide.iconColor;
+
+                if (slide.type === 'image') {
+                    // --- IMAGE MODE ---
+                    if(imgEl) {
+                        imgEl.src = slide.src;
+                        imgEl.classList.remove('hidden');
+                    }
+                    if(cardContentEl) cardContentEl.classList.add('hidden');
+                    
+                    if(slide.backSrc) {
+                        if(backImgEl) {
+                            backImgEl.src = slide.backSrc;
+                            backImgEl.classList.remove('hidden');
+                        }
+                        if(flipCard) {
+                            flipCard.style.pointerEvents = 'auto';
+                            flipCard.classList.add('cursor-pointer');
+                        }
+                        if(hintEl) hintEl.classList.remove('hidden');
+                    }
+                } else {
+                    // --- CARD MODE ---
+                    if(imgEl) imgEl.classList.add('hidden');
+                    if(backImgEl) backImgEl.classList.add('hidden');
+                    if(hintEl) hintEl.classList.add('hidden');
+                    if(flipCard) {
+                        flipCard.style.pointerEvents = 'none';
+                        flipCard.classList.remove('cursor-pointer');
+                    }
+
+                    if(cardContentEl) cardContentEl.classList.remove('hidden');
+                    
+                    // Background Decor
+                    if(bgIconEl) {
+                        bgIconEl.setAttribute('data-lucide', slide.icon);
+                        bgIconEl.style.color = slide.iconColor;
+                    }
+                    if(circleDecor) circleDecor.style.backgroundColor = slide.iconColor;
+
+                    // Toggle Layout
+                    if (slide.layout === 'icon') {
+                        // Show Icon Mode
+                        if(cardTextMode) cardTextMode.classList.add('hidden');
+                        if(cardIconMode) {
+                            cardIconMode.classList.remove('hidden');
+                            cardIconMode.style.display = 'flex';
+                        }
+                        
+                        if(mainIconEl) {
+                            mainIconEl.setAttribute('data-lucide', slide.icon);
+                            mainIconEl.style.color = '#ffffff';
+                        }
+                        if(mainIconBg) {
+                            mainIconBg.style.backgroundColor = slide.iconColor;
+                            mainIconBg.style.boxShadow = `0 10px 30px -10px ${slide.iconColor}80`;
+                        }
+                    } else {
+                        // Show Title Mode
+                        if(cardIconMode) cardIconMode.classList.add('hidden');
+                        if(cardTextMode) {
+                            cardTextMode.classList.remove('hidden');
+                            cardTextMode.style.display = 'flex';
+                        }
+                        
+                        if(cardTitleEl) cardTitleEl.innerText = slide.title;
+                        if(barDecor) barDecor.style.backgroundColor = slide.iconColor;
+                    }
+                    
+                    lucide.createIcons();
+                }
+
+                // Update Dots
+                const dotsContainer = document.getElementById('slide-dots');
+                if(dotsContainer) {
+                    dotsContainer.innerHTML = '';
+                    slides.forEach((_, idx) => {
+                        const dot = document.createElement('div');
+                        dot.className = `w-2 h-2 rounded-full transition-all duration-300 ${idx === currentSlideIndex ? 'bg-zinc-800 w-6' : 'bg-zinc-300'}`;
+                        dotsContainer.appendChild(dot);
+                    });
+                }
+
+                // Animate In Text
+                if(textContainer) {
+                    textContainer.classList.remove('opacity-0');
+                }
+            }, 300);
+        }
+
+        function toggleSlideFlip() {
+            if(slides[currentSlideIndex].type === 'image' && slides[currentSlideIndex].backSrc) {
+                const card = document.getElementById('slide-flip-card');
+                if(card) card.classList.toggle('flipped');
+            }
+        }
+
+        function nextSlide() {
+            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+            renderSlide();
+        }
+
+        function prevSlide() {
+            currentSlideIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+            renderSlide();
+        }
+    </script>
+</body>
+</html>
